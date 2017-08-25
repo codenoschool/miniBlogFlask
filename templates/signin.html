@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+{% from "_render_elements.html" import render_field %}
+{% block title %}
+Sign Up
+{% endblock %}
+{% block content %}
+<h1>Sign In</h1>
+<form method="post" action="{{ url_for('signin') }}">
+	{{ form.csrf_token }}
+	{{ render_field(form.email) }}
+	{{ render_field(form.password) }}
+	<p>{{ form.remember }} {{ form.remember.label }}</p>
+	{{ form.submit }}
+</form>
+{% endblock %}
