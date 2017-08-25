@@ -3,6 +3,7 @@ from flask_wtf import FlaskForm
 from wtforms import StringField, PasswordField, BooleanField, SubmitField
 from wtforms.validators import InputRequired, Length, Email
 from flask_sqlalchemy import SQLAlchemy
+from flask_login import UserMixin, LoginManager, login_required, login_user, current_user, logout_user
 from werkzeug.security import generate_password_hash, check_password_hash
 
 import os
@@ -13,6 +14,13 @@ app = Flask(__name__)
 app.config["SECRET_KEY"] = "superSecret"
 app.config["SQLALCHEMY_DATABASE_URI"] = dbdir
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
+login_manager = LoginManager()
+login_manager.init_app(app)
+login_manager.login_view = "signin"
+
+@login_manager.user_loader
+def load_user(user_id):
+    return Users.query.get(user_id)
 
 db = SQLAlchemy(app)
 
@@ -21,7 +29,7 @@ class Posts(db.Model):
     title = db.Column(db.String(50))
     content = db.Column(db.String())
 
-class Users(db.Model):
+class Users(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     email = db.Column(db.String(50), nullable=False, unique=True)
     password = db.Column(db.String(80), nullable=False)
@@ -54,6 +62,7 @@ def post(id):
     return render_template("post.html", post=post)
 
 @app.route("/new/post", methods=["GET", "POST"])
+@login_required
 def newPost():
 
     if request.method == "POST":
@@ -75,7 +84,7 @@ def signup():
         db.session.add(new_user)
         db.session.commit()
         flash("You've been registered successfully")
-        return redirect(url_for("sigin"))
+        return redirect(url_for("signin"))
 
     return render_template("signup.html", form=form)
 
@@ -87,10 +96,19 @@ def signin():
         user = Users.query.filter_by(email=form.email.data).first()
 
         if user and check_password_hash(user.password, form.password.data):
+            login_user(user, remember=form.remember)
             return redirect(url_for("newPost"))
         return "Your credentials are invalid. Double check and try again."
     
     return render_template("signin.html", form=form)
+
+@app.route("/logout")
+@login_required
+def logout():
+    logout_user()
+    flash("You've logged out correctly.")
+    
+    return redirect(url_for("index"))
 
 @app.errorhandler(400)
 def page_not_found(error):
